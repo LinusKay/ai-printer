@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>AI Printer</title>
+    <style>
+        body {
+            width:800px;
+            margin:auto;
+        }
+        #computor {
+            display:block;
+            margin:auto;
+            width:300px;
+            cursor:pointer;
+        }
+        .computor-nointeract {
+            cursor:wait !important;
+        }
+        .shake {
+            animation: tilt-shaking 0.10s infinite;
+        }
+        @keyframes tilt-shaking {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(3deg); }
+            50% { transform: rotate(0eg); }
+            75% { transform: rotate(-3deg); }
+            100% { transform: rotate(0deg); }
+        }
+        @keyframes vertical-shaking {
+            0% { transform: translateY(0) }
+            25% { transform: translateY(5px) }
+            50% { transform: translateY(-5px) }
+            75% { transform: translateY(5px) }
+            100% { transform: translateY(0) }
+        }
+        .generation {
+            cursor:grab;
+            width:200px;
+            height:250px;
+            position:relative;
+            float:left;
+            transition: filter .2s;
+            filter: drop-shadow(0 0 0 #333);
+        }
+        .generation img {
+            position:absolute;
+            top:0;
+            left:0;
+            width:100%;
+            display:block;
+            transition: all .1s;
+            border-radius:3px;
+        }
+        .dragging {
+            filter: drop-shadow(10px 7px 7px #333);
+        }
+        .dragging-img-offset {
+            top:-7px !important;
+            /* rotate: -3deg; */
+        }
+        .bubble {
+            background:wheat;
+            border: solid 1px #555;
+            min-width: 30px;
+            max-width:130px;
+            padding:10px;
+            border-radius:15px;
+            position:absolute;
+            animation: vertical-shaking 2s infinite;
+            opacity:1;
+        }
+        .bubble p {
+            margin:0;
+            padding:0;
+            font-family:'Courier New', Courier, monospace;
+        }
+    </style>
+    <script>
+        // Setup
+        let working = false;
+        const generations = [
+            '1.webp',
+            '2.webp'
+        ]
+        const imgLocation = 'img/';
+        const generationLocation = 'generations/';
+
+        window.addEventListener('load', function onLoad() {
+            computorGenerateImage();
+        });
+
+        // Utility
+        function computorSetImage(imgSrc) {
+            const computor = document.getElementById('computor');
+            computor.src = imgLocation + imgSrc;
+        }
+        function getThinkTime(min=100, max=600) {
+            return Math.random() * (max - min) + min;
+        }
+
+        // Main function
+        function computorStart() {
+            if(!working) {
+                computerThink();
+                working = true;
+            }
+        }
+        function computerThink() {
+            console.log('go!')
+            const computor = document.getElementById('computor');
+            computor.classList.add('shake');
+            computor.classList.add('computor-nointeract');
+            computorSetImage('computorbrain.png');
+            const thinkTime = getThinkTime();
+            setTimeout(
+                computorGenerateImage,
+                thinkTime
+            );
+        }
+        function computorGenerateImage() {
+            const generationBox = document.createElement('div');
+            generationBox.classList.add('generation');
+            dragElement(generationBox);
+
+            const generationImg = document.createElement('img');
+            const generationImgSrc = generations[Math.floor(Math.random() * generations.length)];
+            generationImg.src = imgLocation + generationLocation + generationImgSrc;
+            generationBox.appendChild(generationImg);
+            
+            const creationZone = document.getElementById('creationZone');
+            creationZone.appendChild(generationBox);
+            
+            createBubble("done!!", x=generationBox.style.left, y=generationBox.style.top,immortal=false, ttl=200);
+            computorFinish();
+        }
+        function computorFinish() {
+            const computor = document.getElementById('computor');
+            computor.classList.remove('shake');
+            computor.classList.remove('computor-nointeract');
+            computorSetImage('computorthumb.png');
+            setTimeout(
+                computorSetImage,
+                500,
+                'computor.png'
+            )
+            working = false;
+        }
+
+    /**
+     * Enables dragging functionality for the specified element.
+     * 
+     * @param {HTMLElement} element - The element to enable dragging for.
+     */
+    function dragElement(element) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        let rotationAngle = 0;
+
+        // Function triggered when the mouse is pressed down on the element
+        element.onmousedown = dragMouseDown;
+
+        function dragMouseDown(e) {
+            element.style.position = 'absolute';
+            element.classList.add('dragging');
+            const elementImg = element.getElementsByTagName('img')[0];
+            elementImg.classList.add('dragging-img-offset');
+            e = e || window.event;
+            e.preventDefault();
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            createBubble("pop", x = pos3, y = pos4, immortal = false, ttl = 100);
+
+            // Set the zIndex of the dragged element and attach event listeners for mouse movements
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        }
+
+        // Function triggered when the mouse is moved while the element is being dragged
+        function elementDrag(e) {
+            e = e || window.event;
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+
+            // Adjust the position of the element based on the mouse movement
+            element.style.top = (element.offsetTop - pos2) + 'px';
+            element.style.left = (element.offsetLeft - pos1) + 'px';
+
+            // Adjust the rotation based on horizontal movement (pos1)
+            let dragTile = Math.max(-15, Math.min(15, (pos1 / 2)));  // Limits tilt to between -15 and 15 degrees
+            element.style.transform = `rotate(${dragTile}deg)`;
+
+            const elementImg = element.getElementsByTagName('img')[0];
+            console.log(elementImg.src)
+            if(!elementImg.src.includes('_drag')) elementImg.src = elementImg.src.replace('.webp', '_drag.webp');
+        }
+
+        // Function triggered when the mouse button is released, ending the drag operation
+        function closeDragElement(e) {
+            element.classList.remove('dragging');
+            const elementImg = element.getElementsByTagName('img')[0];
+            elementImg.classList.remove('dragging-img-offset');
+            elementImg.src = elementImg.src.replace('_drag', '');
+            e = e || window.event;
+            document.onmouseup = null;
+            document.onmousemove = null;
+
+            // Reset the rotation angle after the drag ends
+            element.style.transform = `rotate(0deg)`;
+        }
+    }
+
+
+    function createBubble(bubbleContents='hello world!', x=0, y=0, immortal=false, ttl=2000) {
+        create(immortal, ttl);
+        function create(immortal, ttl) {
+            const bubbleBox = document.createElement('div');
+            bubbleBox.classList.add('bubble');
+            bubbleBox.onclick = function(){ fadeOut(this); }
+            bubbleBox.position = 'absolute';
+            bubbleBox.style.left = x + 'px';
+            bubbleBox.style.top = y + 'px';
+            const bubbleText = document.createElement('p');
+            bubbleText.innerHTML = bubbleContents;        
+            bubbleBox.appendChild(bubbleText);
+            document.body.appendChild(bubbleBox);
+            if(!immortal) {                 
+                setTimeout(
+                    fadeOut,
+                    ttl,
+                    bubbleBox
+                )
+            }
+        }
+        function fadeOut(bubble) {
+            bubble.classList.add('shake');
+            if(bubble.style.opacity == '') bubble.style.opacity = 1;
+            bubble.style.opacity -= 0.1;
+            if(bubble.style.opacity > 0) {
+                setTimeout(
+                    fadeOut, 100, bubble
+                )  
+            }
+            else { destroy(bubble);}
+        }
+        function destroy(bubble) {
+            bubble.remove();
+        }
+    }
+    </script>
+</head>
+<body>
+    <img onclick=computorStart(); src='img/computor.png' id='computor'>
+    <div id='creationZone'></div>
+</body>
+</html>
